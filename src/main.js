@@ -27,16 +27,18 @@
 
 import {
 	File,
-	FileAction,
 	registerFileAction,
 	Permission,
 	DefaultType,
 	addNewFileMenuEntry,
-	davGetClient,
-	davRootPath,
-	davGetDefaultPropfind,
-	davResultToNode,
+	getSidebar,
 } from '@nextcloud/files'
+import {
+	getClient as davGetClient,
+	getRootPath as davGetRootPath,
+	getDefaultPropfind as davGetDefaultPropfind,
+	resultToNode as davResultToNode,
+} from '@nextcloud/files/dav'
 import { emit } from '@nextcloud/event-bus'
 import AppDarkSvg from '../img/app-dark.svg?raw'
 import NewDocxSvg from '../img/new-docx.svg?raw'
@@ -51,7 +53,7 @@ import { loadState } from '@nextcloud/initial-state'
  */
 (function(OCA) {
 
-	OCA.Onlyoffice = _.extend({
+	OCA.Onlyoffice = Object.assign({
 		AppName: 'eurooffice',
 		context: null,
 		frameSelector: null,
@@ -202,9 +204,7 @@ import { loadState } from '@nextcloud/initial-state'
 
 			$('body').addClass('eurooffice-inline')
 
-			if (OCA.Files.Sidebar) {
-				OCA.Files.Sidebar.close()
-			}
+			getSidebar().close()
 
 			const scrollTop = $('#app-content').scrollTop()
 			$(OCA.Onlyoffice.frameSelector).css('top', scrollTop)
@@ -249,21 +249,37 @@ import { loadState } from '@nextcloud/initial-state'
 
 	OCA.Onlyoffice.OpenShareDialog = function() {
 		if (OCA.Onlyoffice.context) {
-			if (!$('#app-sidebar-vue').is(':visible')) {
-				OCA.Files.Sidebar.open(OCA.Onlyoffice.context.dir + '/' + OCA.Onlyoffice.context.fileName)
-				OCA.Files.Sidebar.setActiveTab('sharing')
+			const sidebar = getSidebar()
+			if (!sidebar.isOpen) {
+				davGetClient().stat(davGetRootPath() + OCA.Onlyoffice.context.dir + '/' + OCA.Onlyoffice.context.fileName, {
+					details: true,
+					data: davGetDefaultPropfind(),
+				}).then((result) => {
+					const node = davResultToNode(result.data)
+					emit('files:node:updated', node)
+					sidebar.open(node)
+					sidebar.setActiveTab('sharing')
+				})
 			} else {
-				OCA.Files.Sidebar.close()
+				sidebar.close()
 			}
 		}
 	}
 
 	OCA.Onlyoffice.RefreshVersionsDialog = function() {
 		if (OCA.Onlyoffice.context) {
-			if ($('#app-sidebar-vue').is(':visible')) {
-				OCA.Files.Sidebar.close()
-				OCA.Files.Sidebar.open(OCA.Onlyoffice.context.dir + '/' + OCA.Onlyoffice.context.fileName)
-				OCA.Files.Sidebar.setActiveTab('versionsTabView')
+			const sidebar = getSidebar()
+			if (sidebar.isOpen) {
+				sidebar.close()
+				davGetClient().stat(davGetRootPath() + OCA.Onlyoffice.context.dir + '/' + OCA.Onlyoffice.context.fileName, {
+					details: true,
+					data: davGetDefaultPropfind(),
+				}).then((result) => {
+					const node = davResultToNode(result.data)
+					emit('files:node:updated', node)
+					sidebar.open(node)
+					sidebar.setActiveTab('versionsTabView')
+				})
 			}
 		}
 	}
@@ -279,18 +295,20 @@ import { loadState } from '@nextcloud/initial-state'
 		OCA.Onlyoffice.context.fileName = fileName
 	}
 
-	OCA.Onlyoffice.FileClickExec = async function(file, view, dir, isDefault = true) {
+	OCA.Onlyoffice.FileClickExec = async function({ nodes, view, isDefault = true }) {
+		const file = nodes[0]
+
 		if (OCA.Onlyoffice.context !== null
 			&& document.querySelector('.eurooffice-iframe-container')
 			&& !OCA.Onlyoffice.Desktop) {
 			return null
 		}
 
-		OCA.Onlyoffice.OpenEditor(file.fileid, dir, file.basename, 0, isDefault)
+		OCA.Onlyoffice.OpenEditor(file.fileid, file.dirname, file.basename, 0, isDefault)
 
 		OCA.Onlyoffice.context = {
 			fileName: file.basename,
-			dir,
+			dir: file.dirname,
 		}
 
 		return null
@@ -308,9 +326,11 @@ import { loadState } from '@nextcloud/initial-state'
 		})
 	}
 
-	OCA.Onlyoffice.FileConvertClickExec = async function(file, view, dir) {
+	OCA.Onlyoffice.FileConvertClickExec = async function({ nodes, view }) {
+		const file = nodes[0]
+
 		OCA.Onlyoffice.FileConvert(file.fileid, async (response) => {
-			const viewContents = await view.getContents(dir)
+			const viewContents = await view.getContents(file.dirname)
 
 			if (viewContents.folder && (viewContents.folder.fileid === response.parentId)) {
 				const newFile = viewContents.contents.find(node => node.fileid === response.id)
@@ -350,7 +370,9 @@ import { loadState } from '@nextcloud/initial-state'
 		OCA.Onlyoffice.Download(fileName, fileId)
 	}
 
-	OCA.Onlyoffice.DownloadClickExec = async function(file) {
+	OCA.Onlyoffice.DownloadClickExec = async function({ nodes }) {
+		const file = nodes[0]
+
 		OCA.Onlyoffice.Download(file.basename, file.fileid)
 
 		return null
@@ -442,7 +464,7 @@ import { loadState } from '@nextcloud/initial-state'
 				const targetFolderPath = OC.dirname(filePath)
 
 				if (!dialogFileList) {
-					const results = await davGetClient().getDirectoryContents(davRootPath + targetFolderPath, {
+					const results = await davGetClient().getDirectoryContents(davGetRootPath() + targetFolderPath, {
 						details: true,
 						data: davGetDefaultPropfind(),
 					})
@@ -481,10 +503,11 @@ import { loadState } from '@nextcloud/initial-state'
 		OCA.Onlyoffice.CreateFile(name, fileList, 0, targetId, false)
 	}
 
-	OCA.Onlyoffice.CreateFormClickExec = async function(file, view, dir) {
+	OCA.Onlyoffice.CreateFormClickExec = async function({ nodes, view }) {
+		const file = nodes[0]
 		const name = file.basename.replace(/\.[^.]+$/, '.pdf')
 		const context = {
-			dir,
+			dir: file.dirname,
 			view,
 		}
 
@@ -559,11 +582,11 @@ import { loadState } from '@nextcloud/initial-state'
 				})
 			})
 		} else {
-			registerFileAction(new FileAction({
+			registerFileAction({
 				id: 'eurooffice-open-def',
 				displayName: () => t(OCA.Onlyoffice.AppName, 'Open in Euro-Office'),
 				iconSvgInline: () => AppDarkSvg,
-				enabled: (files) => {
+				enabled: ({ nodes: files }) => {
 					const config = getConfig(files[0])
 
 					if (!config) return false
@@ -576,13 +599,13 @@ import { loadState } from '@nextcloud/initial-state'
 				exec: OCA.Onlyoffice.FileClickExec,
 				default: DefaultType.HIDDEN,
 				order: -1,
-			}))
+			})
 
-			registerFileAction(new FileAction({
+			registerFileAction({
 				id: 'eurooffice-open',
 				displayName: () => t(OCA.Onlyoffice.AppName, 'Open in Euro-Office'),
 				iconSvgInline: () => AppDarkSvg,
-				enabled: (files) => {
+				enabled: ({ nodes: files }) => {
 					const config = getConfig(files[0])
 
 					if (!config) return false
@@ -592,16 +615,16 @@ import { loadState } from '@nextcloud/initial-state'
 
 					return true
 				},
-				exec(file, view, dir) {
-					OCA.Onlyoffice.FileClickExec(file, view, dir, false)
+				exec({ nodes, view }) {
+					OCA.Onlyoffice.FileClickExec({ nodes, view, isDefault: false })
 				},
-			}))
+			})
 
-			registerFileAction(new FileAction({
+			registerFileAction({
 				id: 'eurooffice-convert',
 				displayName: () => t(OCA.Onlyoffice.AppName, 'Convert with Euro-Office'),
 				iconSvgInline: () => AppDarkSvg,
-				enabled: (files) => {
+				enabled: ({ nodes: files }) => {
 					const config = getConfig(files[0])
 
 					if (!config) return false
@@ -621,13 +644,13 @@ import { loadState } from '@nextcloud/initial-state'
 					return true
 				},
 				exec: OCA.Onlyoffice.FileConvertClickExec,
-			}))
+			})
 
-			registerFileAction(new FileAction({
+			registerFileAction({
 				id: 'eurooffice-create-form',
 				displayName: () => t(OCA.Onlyoffice.AppName, 'Create form'),
 				iconSvgInline: () => AppDarkSvg,
-				enabled: (files) => {
+				enabled: ({ nodes: files }) => {
 					const config = getConfig(files[0])
 
 					if (!config) return false
@@ -647,14 +670,14 @@ import { loadState } from '@nextcloud/initial-state'
 					return true
 				},
 				exec: OCA.Onlyoffice.CreateFormClickExec,
-			}))
+			})
 
 			if (!isPublicShare()) {
-				registerFileAction(new FileAction({
+				registerFileAction({
 					id: 'eurooffice-download-as',
 					displayName: () => t(OCA.Onlyoffice.AppName, 'Download as'),
 					iconSvgInline: () => AppDarkSvg,
-					enabled: (files) => {
+					enabled: ({ nodes: files }) => {
 						if (OCA.Onlyoffice.setting.disableDownload) {
 							return false
 						}
@@ -674,7 +697,7 @@ import { loadState } from '@nextcloud/initial-state'
 						return true
 					},
 					exec: OCA.Onlyoffice.DownloadClickExec,
-				}))
+				})
 			}
 		}
 	}
@@ -880,19 +903,19 @@ import { loadState } from '@nextcloud/initial-state'
 				return
 			}
 
-			registerFileAction(new FileAction({
+			registerFileAction({
 				id: 'eurooffice-public-open',
 				displayName: () => t(OCA.Onlyoffice.AppName, 'Open in Euro-Office'),
 				iconSvgInline: () => AppDarkSvg,
-				enabled: (files) => {
+				enabled: ({ nodes: files }) => {
 					if (Permission.READ !== (files[0].permissions & Permission.READ)) { return false }
 
 					return true
 				},
-				exec(file, view, dir) {
-					OCA.Onlyoffice.FileClickExec(file, view, dir, false)
+				exec({ nodes, view }) {
+					OCA.Onlyoffice.FileClickExec({ nodes, view, isDefault: false })
 				},
-			}))
+			})
 
 			if (config.def
 				&& !_oc_appswebroots.richdocuments
