@@ -79,20 +79,20 @@ class EditorsCheck extends TimedJob {
         }
         $host = parse_url((string) $fileUrl)["host"];
         if ($host === "localhost" || $host === "127.0.0.1") {
-            $this->logger->debug("Localhost is not alowed for cron editors availability check. Please provide server address for internal requests from ONLYOFFICE Docs");
+            $this->logger->debug("Localhost is not alowed for cron editors availability check. Please provide server address for internal requests from Euro-Office Docs");
             return;
         }
 
-        $this->logger->debug("ONLYOFFICE check started by cron");
+        $this->logger->debug("Euro-Office check started by cron");
 
         [$error, $version] = $this->documentService->checkDocServiceUrl();
 
         if (!empty($error)) {
-            $this->logger->info("ONLYOFFICE server is not available");
+            $this->logger->info("Euro-Office server is not available");
             $this->appConfig->setSettingsError($error);
             $this->notifyAdmins();
         } else {
-            $this->logger->debug("ONLYOFFICE server availability check is finished successfully");
+            $this->logger->debug("Euro-Office server availability check is finished successfully");
         }
     }
 
