@@ -33,7 +33,7 @@ import { defineAsyncComponent } from 'vue'
 (function($, OC) {
 
 	$(document).ready(function() {
-		OCA.Onlyoffice = _.extend({}, OCA.Onlyoffice)
+		OCA.Onlyoffice = Object.assign({}, OCA.Onlyoffice)
 		if (!OCA.Onlyoffice.AppName) {
 			OCA.Onlyoffice = {
 				AppName: 'eurooffice',

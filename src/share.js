@@ -33,7 +33,7 @@ import AppDarkSvg from '../img/app-dark.svg?raw';
  */
 (function($, OC) {
 
-	OCA.Onlyoffice = _.extend({
+	OCA.Onlyoffice = Object.assign({
 		AppName: 'eurooffice',
 	}, OCA.Onlyoffice)
 

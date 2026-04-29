@@ -28,7 +28,7 @@
  */
 (function(OCA) {
 
-	OCA.Onlyoffice = _.extend({}, OCA.Onlyoffice)
+	OCA.Onlyoffice = Object.assign({}, OCA.Onlyoffice)
 
 	if (!window.AscDesktopEditor) {
 		return

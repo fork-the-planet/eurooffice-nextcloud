@@ -28,7 +28,7 @@
  */
 (function(OCA) {
 
-	OCA.Onlyoffice = _.extend({
+	OCA.Onlyoffice = Object.assign({
 		AppName: 'eurooffice',
 		frameSelector: null,
 		titleBase: window.document.title,

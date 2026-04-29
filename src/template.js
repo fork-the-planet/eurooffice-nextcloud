@@ -29,7 +29,7 @@
  */
 (function($, OC) {
 
-	OCA.Onlyoffice = _.extend({
+	OCA.Onlyoffice = Object.assign({
 		AppName: 'eurooffice',
 		templates: null,
 	}, OCA.Onlyoffice)
