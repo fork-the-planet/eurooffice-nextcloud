@@ -23,7 +23,7 @@
 
 /* eslint-disable import/no-unresolved */
 
-/* global _, $, _oc_appswebroots */
+/* global _, _oc_appswebroots */
 
 import {
 	File,
@@ -40,6 +40,11 @@ import {
 	resultToNode as davResultToNode,
 } from '@nextcloud/files/dav'
 import { emit } from '@nextcloud/event-bus'
+import { generateUrl } from '@nextcloud/router'
+import { getCurrentUser } from '@nextcloud/auth'
+import { spawnDialog } from '@nextcloud/vue/functions/dialog'
+import { defineAsyncComponent } from 'vue'
+import axios from '@nextcloud/axios'
 import AppDarkSvg from '../img/app-dark.svg?raw'
 import NewDocxSvg from '../img/new-docx.svg?raw'
 import NewXlsxSvg from '../img/new-xlsx.svg?raw'
@@ -84,10 +89,10 @@ import { loadState } from '@nextcloud/initial-state'
 					mtime: new Date(),
 					mime: response.mimetype,
 					name: response.name,
-					owner: OC.getCurrentUser().uid || null,
+					owner: getCurrentUser()?.uid || null,
 					permissions: Permission.ALL,
 					type: 'file',
-					root: filesContext?.root || '/files/' + OC.getCurrentUser().uid,
+					root: filesContext?.root || '/files/' + getCurrentUser()?.uid,
 				})
 				emit('files:node:created', file)
 			} else {
@@ -124,32 +129,37 @@ import { loadState } from '@nextcloud/initial-state'
 			createData.shareToken = encodeURIComponent(getSharingToken())
 		}
 
-		$.post(OC.generateUrl('apps/' + OCA.Eurooffice.AppName + '/ajax/new'),
-			createData,
-			function onSuccess(response) {
-				if (response.error) {
+		axios.post(generateUrl('apps/' + OCA.Eurooffice.AppName + '/ajax/new'), createData)
+			.then((response) => {
+				const data = response.data
+				if (data.error) {
 					if (winEditor) {
 						winEditor.close()
 					}
-					OCP.Toast.error(response.error)
+					OCP.Toast.error(data.error)
 					return
 				}
 
-				callback(response)
+				callback(data)
 
 				if (open) {
-					const fileName = response.name
-					OCA.Eurooffice.OpenEditor(response.id, dir, fileName, winEditor)
+					const fileName = data.name
+					OCA.Eurooffice.OpenEditor(data.id, dir, fileName, winEditor)
 
 					OCA.Eurooffice.context = {
-						fileName: response.name,
+						fileName: data.name,
 						dir,
 					}
 				}
 
 				OCP.Toast.success(t(OCA.Eurooffice.AppName, 'File created'))
-			},
-		)
+			})
+			.catch((error) => {
+				if (winEditor) {
+					winEditor.close()
+				}
+				OCP.Toast.error(error.message || t(OCA.Eurooffice.AppName, 'Failed to create file'))
+			})
 	}
 
 	OCA.Eurooffice.OpenEditor = function(fileId, fileDir, fileName, winEditor, isDefault = true) {
@@ -157,14 +167,14 @@ import { loadState } from '@nextcloud/initial-state'
 		if (fileName) {
 			filePath = fileDir.replace(/\/$/, '') + '/' + fileName
 		}
-		let url = OC.generateUrl('/apps/' + OCA.Eurooffice.AppName + '/{fileId}?filePath={filePath}',
+		let url = generateUrl('/apps/' + OCA.Eurooffice.AppName + '/{fileId}?filePath={filePath}',
 			{
 				fileId,
 				filePath,
 			})
 
 		if (isPublicShare()) {
-			url = OC.generateUrl('apps/' + OCA.Eurooffice.AppName + '/s/{shareToken}?fileId={fileId}',
+			url = generateUrl('apps/' + OCA.Eurooffice.AppName + '/s/{shareToken}?fileId={fileId}',
 				{
 					shareToken: encodeURIComponent(getSharingToken()),
 					fileId,
@@ -197,17 +207,31 @@ import { loadState } from '@nextcloud/initial-state'
 				return
 			}
 			OCA.Eurooffice.frameSelector = '#euroofficeFrame'
-			const $iframe = $('<div class="eurooffice-iframe-container"><iframe id="euroofficeFrame" nonce="' + btoa(OC.requestToken) + '" scrolling="no" allowfullscreen src="' + url + '&inframe=true" /></div>')
+			const iframeContainer = document.createElement('div')
+			iframeContainer.className = 'eurooffice-iframe-container'
+			const iframe = document.createElement('iframe')
+			iframe.id = 'euroofficeFrame'
+			iframe.setAttribute('nonce', btoa(OC.requestToken))
+			iframe.setAttribute('scrolling', 'no')
+			iframe.setAttribute('allowfullscreen', '')
+			iframe.src = url + '&inframe=true'
+			iframeContainer.appendChild(iframe)
 
-			const frameContainer = $('#app-content').length > 0 ? $('#app-content') : $('#app-content-vue')
-			frameContainer.append($iframe)
+			const frameContainer = document.getElementById('app-content') || document.getElementById('app-content-vue')
+			if (frameContainer) {
+				frameContainer.appendChild(iframeContainer)
+			}
 
-			$('body').addClass('eurooffice-inline')
+			document.body.classList.add('eurooffice-inline')
 
-			getSidebar().close()
+			getSidebar()?.close()
 
-			const scrollTop = $('#app-content').scrollTop()
-			$(OCA.Eurooffice.frameSelector).css('top', scrollTop)
+			const appContentElement = document.getElementById('app-content')
+			const scrollTop = appContentElement ? appContentElement.scrollTop : 0
+			const frameElement = document.querySelector(OCA.Eurooffice.frameSelector)
+			if (frameElement) {
+				frameElement.style.top = scrollTop + 'px'
+			}
 
 			const currentQuery = { ...OCP.Files.Router.query }
 			if (isDefault) {
@@ -225,7 +249,7 @@ import { loadState } from '@nextcloud/initial-state'
 	}
 
 	OCA.Eurooffice.CloseEditor = function() {
-		$('body').removeClass('eurooffice-inline')
+		document.body.classList.remove('eurooffice-inline')
 
 		const iframeContainer = document.querySelector('.eurooffice-iframe-container')
 		if (iframeContainer !== null) {
@@ -350,17 +374,20 @@ import { loadState } from '@nextcloud/initial-state'
 			convertData.shareToken = encodeURIComponent(getSharingToken())
 		}
 
-		$.post(OC.generateUrl('apps/' + OCA.Eurooffice.AppName + '/ajax/convert'),
-			convertData,
-			function onSuccess(response) {
-				if (response.error) {
-					OCP.Toast.error(response.error)
+		axios.post(generateUrl('apps/' + OCA.Eurooffice.AppName + '/ajax/convert'), convertData)
+			.then((response) => {
+				const data = response.data
+				if (data.error) {
+					OCP.Toast.error(data.error)
 					return
 				}
 
-				callback(response)
+				callback(data)
 
 				OCP.Toast.success(t(OCA.Eurooffice.AppName, 'File has been converted. Its content might look different.'))
+			})
+			.catch((error) => {
+				OCP.Toast.error(error.message || t(OCA.Eurooffice.AppName, 'Failed to convert file'))
 			})
 	}
 
@@ -379,63 +406,18 @@ import { loadState } from '@nextcloud/initial-state'
 	}
 
 	OCA.Eurooffice.Download = function(fileName, fileId) {
-		$.get(OC.filePath(OCA.Eurooffice.AppName, 'templates', 'downloadPicker.html'),
-			function(tmpl) {
-				const dialog = $(tmpl).octemplate({
-					dialog_name: 'download-picker',
-					dialog_title: t('eurooffice', 'Download as'),
-				})
+		const extension = OCA.Eurooffice.getFileExtension(fileName)
+		const saveasOptions = OCA.Eurooffice.setting.formats[extension]?.saveas || []
 
-				$(dialog[0].querySelectorAll('p')).text(t(OCA.Eurooffice.AppName, 'Choose a format to convert {fileName}', { fileName }))
-
-				const extension = OCA.Eurooffice.getFileExtension(fileName)
-				const selectNode = dialog[0].querySelectorAll('select')[0]
-				const optionNodeOrigin = selectNode.querySelectorAll('option')[0]
-
-				$(optionNodeOrigin).attr('data-value', extension)
-				$(optionNodeOrigin).text(t(OCA.Eurooffice.AppName, 'Origin format'))
-
-				dialog[0].dataset.format = extension
-				selectNode.onchange = function() {
-					dialog[0].dataset.format = $('#eurooffice-download-select option:selected').attr('data-value')
-				}
-
-				OCA.Eurooffice.setting.formats[extension].saveas.forEach(ext => {
-					const optionNode = optionNodeOrigin.cloneNode(true)
-
-					$(optionNode).attr('data-value', ext)
-					$(optionNode).text(ext)
-
-					selectNode.append(optionNode)
-				})
-
-				$('body').append(dialog)
-
-				$('#download-picker').ocdialog({
-					closeOnEscape: true,
-					modal: true,
-					buttons: [{
-						text: t('core', 'Cancel'),
-						classes: 'cancel',
-						click() {
-							$(this).ocdialog('close')
-						},
-					}, {
-						text: t('eurooffice', 'Download'),
-						classes: 'primary',
-						click() {
-							const format = this.dataset.format
-							const downloadLink = OC.generateUrl('apps/' + OCA.Eurooffice.AppName + '/downloadas?fileId={fileId}&toExtension={toExtension}', {
-								fileId,
-								toExtension: format,
-							})
-
-							location.href = downloadLink
-							$(this).ocdialog('close')
-						},
-					}],
-				})
-			})
+		spawnDialog(
+			defineAsyncComponent(() => import('./views/DownloadAsDialog.vue')),
+			{
+				fileName,
+				fileId,
+				extension,
+				saveasOptions,
+			},
+		)
 	}
 
 	OCA.Eurooffice.OpenFormPicker = function(name, filelist, filesContext = null) {
@@ -527,9 +509,9 @@ import { loadState } from '@nextcloud/initial-state'
 		}
 
 		if (OCA.Files && OCA.Files.fileActions) {
-			$.each(formats, function(ext, config) {
+			Object.entries(formats).forEach(([ext, config]) => {
 				if (!config.mime) {
-					return true
+					return
 				}
 
 				const mimeTypes = config.mime
@@ -921,7 +903,7 @@ import { loadState } from '@nextcloud/initial-state'
 				&& !_oc_appswebroots.richdocuments
 				&& !(_oc_appswebroots.files_pdfviewer && extension === 'pdf')
 				&& !(_oc_appswebroots.text && extension === 'txt')) {
-				const editorUrl = OC.generateUrl('apps/' + OCA.Eurooffice.AppName + '/s/' + encodeURIComponent(getSharingToken()))
+				const editorUrl = generateUrl('apps/' + OCA.Eurooffice.AppName + '/s/' + encodeURIComponent(getSharingToken()))
 
 				OCA.Eurooffice.frameSelector = '#euroofficeFrame'
 				const container = document.createElement('div')
@@ -935,7 +917,7 @@ import { loadState } from '@nextcloud/initial-state'
 				container.appendChild(iframe)
 				const appContent = document.querySelector('#app-content') || document.querySelector('#app-content-vue')
 				appContent.appendChild(container)
-				$('body').addClass('eurooffice-inline')
+				document.body.classList.add('eurooffice-inline')
 			}
 		} else {
 			OC.Plugins.register('OCA.Files.NewFileMenu', OCA.Eurooffice.NewFileMenu)
