@@ -566,6 +566,13 @@ class AppConfig {
         if (empty($secret)) {
             $secret = $this->getSystemValue($this->_cryptSecret, true);
         }
+        if (empty($secret)) {
+            // No key configured — derive a stable 32-byte key from the NC instance secret
+            // so JWT encode/decode still works internally (callback URLs round-trip correctly).
+            // This is NOT shared with the document server, so verification across the boundary
+            // is effectively disabled until the admin sets a real Secret Key in settings.
+            $secret = hash('sha256', $this->config->getSystemValue('secret', ''), false);
+        }
         return (string)$secret;
     }
 
