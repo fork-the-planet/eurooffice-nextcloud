@@ -24,6 +24,8 @@
 /* global _ */
 
 import axios from '@nextcloud/axios'
+import { spawnDialog } from '@nextcloud/vue/functions/dialog'
+import { defineAsyncComponent } from 'vue'
 
 /**
  * @param {object} OC Nextcloud OCA object
@@ -36,46 +38,13 @@ import axios from '@nextcloud/axios'
 	}, OCA.Eurooffice)
 
 	OCA.Eurooffice.OpenTemplatePicker = function(name, extension, type) {
-
-		const existingPicker = document.getElementById('eurooffice-template-picker')
-		if (existingPicker) {
-			existingPicker.remove()
-		}
-
-		axios.get(OC.filePath(OCA.Eurooffice.AppName, 'templates', 'templatePicker.html'))
-			.then((response) => {
-				const tempDiv = document.createElement('div')
-				tempDiv.innerHTML = response.data
-				const dialog = window.$(tempDiv.firstElementChild).octemplate({
-					dialog_name: 'eurooffice-template-picker',
-					dialog_title: t(OCA.Eurooffice.AppName, 'Select template'),
-				})
-
-				OCA.Eurooffice.AttachTemplates(dialog, type)
-
-				document.body.appendChild(dialog[0])
-
-				window.$('#eurooffice-template-picker').ocdialog({
-					closeOnEscape: true,
-					modal: true,
-					buttons: [{
-						text: t('core', 'Cancel'),
-						classes: 'cancel',
-						click() {
-							window.$(this).ocdialog('close')
-						},
-					}, {
-						text: t(OCA.Eurooffice.AppName, 'Create'),
-						classes: 'primary',
-						click() {
-							const templateId = this.dataset.templateId
-							const fileList = OCA.Files.App.fileList
-							OCA.Eurooffice.CreateFile(name + extension, fileList, templateId)
-							window.$(this).ocdialog('close')
-						},
-					}],
-				})
-			})
+		spawnDialog(
+			defineAsyncComponent(() => import('./views/TemplatePickerDialog.vue')),
+			{
+				fileName: name + extension,
+				type,
+			},
+		)
 	}
 
 	OCA.Eurooffice.GetTemplates = function() {
@@ -95,6 +64,10 @@ import axios from '@nextcloud/axios'
 				}
 
 				OCA.Eurooffice.templates = data
+			})
+			.catch((error) => {
+				console.error('Eurooffice: failed to fetch templates list', error)
+				OCA.Eurooffice.templates = []
 			})
 	}
 
@@ -127,59 +100,6 @@ import axios from '@nextcloud/axios'
 					callback(response.data)
 				}
 			})
-	}
-
-	OCA.Eurooffice.AttachTemplates = function(dialog, type) {
-		const emptyItem = dialog[0].querySelector('.eurooffice-template-item')
-
-		OCA.Eurooffice.templates.forEach(template => {
-			if (template.type !== type) {
-				return
-			}
-			const item = emptyItem.cloneNode(true)
-
-			const label = item.querySelector('label')
-			if (label) {
-				label.setAttribute('for', 'template_picker-' + template.id)
-			}
-			const input = item.querySelector('input')
-			if (input) {
-				input.id = 'template_picker-' + template.id
-			}
-			const img = item.querySelector('img')
-			if (img) {
-				img.src = template.icon
-			}
-			const p = item.querySelector('p')
-			if (p) {
-				p.textContent = template.name
-			}
-			item.onclick = function() {
-				dialog[0].dataset.templateId = template.id
-			}
-			dialog[0].querySelector('.eurooffice-template-container').appendChild(item)
-		})
-
-		const emptyLabel = emptyItem.querySelector('label')
-		if (emptyLabel) {
-			emptyLabel.setAttribute('for', 'template_picker-0')
-		}
-		const emptyInput = emptyItem.querySelector('input')
-		if (emptyInput) {
-			emptyInput.id = 'template_picker-0'
-			emptyInput.checked = true
-		}
-		const emptyImg = emptyItem.querySelector('img')
-		if (emptyImg) {
-			emptyImg.src = OC.generateUrl('/core/img/filetypes/x-office-' + type + '.svg')
-		}
-		const emptyP = emptyItem.querySelector('p')
-		if (emptyP) {
-			emptyP.textContent = t(OCA.Eurooffice.AppName, 'Empty')
-		}
-		emptyItem.onclick = function() {
-			dialog[0].dataset.templateId = '0'
-		}
 	}
 
 	OCA.Eurooffice.AttachItemTemplate = function(template) {

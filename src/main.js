@@ -772,78 +772,6 @@ import { loadState } from '@nextcloud/initial-state'
 		}
 	}
 
-	OCA.Eurooffice.NewFileMenu = {
-		attach(menu) {
-			const fileList = menu.fileList
-
-			if (fileList.id !== 'files' && fileList.id !== 'files.public') {
-				return
-			}
-
-			if (isPublicShare() && !OCA.Eurooffice.isViewIsFile()) {
-				menu.addMenuEntry({
-					id: 'euroofficeDocx',
-					displayName: t(OCA.Eurooffice.AppName, 'New document'),
-					templateName: t(OCA.Eurooffice.AppName, 'New document'),
-					iconClass: 'icon-eurooffice-new-docx',
-					fileType: 'docx',
-					actionHandler(name) {
-						if (!isPublicShare() && OCA.Eurooffice.TemplateExist('document')) {
-							OCA.Eurooffice.OpenTemplatePicker(name, '.docx', 'document')
-						} else {
-							OCA.Eurooffice.CreateFile(name + '.docx', fileList)
-						}
-					},
-				})
-
-				menu.addMenuEntry({
-					id: 'euroofficeXlsx',
-					displayName: t(OCA.Eurooffice.AppName, 'New spreadsheet'),
-					templateName: t(OCA.Eurooffice.AppName, 'New spreadsheet'),
-					iconClass: 'icon-eurooffice-new-xlsx',
-					fileType: 'xlsx',
-					actionHandler(name) {
-						if (!isPublicShare() && OCA.Eurooffice.TemplateExist('spreadsheet')) {
-							OCA.Eurooffice.OpenTemplatePicker(name, '.xlsx', 'spreadsheet')
-						} else {
-							OCA.Eurooffice.CreateFile(name + '.xlsx', fileList)
-						}
-					},
-				})
-
-				menu.addMenuEntry({
-					id: 'euroofficePpts',
-					displayName: t(OCA.Eurooffice.AppName, 'New presentation'),
-					templateName: t(OCA.Eurooffice.AppName, 'New presentation'),
-					iconClass: 'icon-eurooffice-new-pptx',
-					fileType: 'pptx',
-					actionHandler(name) {
-						if (!isPublicShare() && OCA.Eurooffice.TemplateExist('presentation')) {
-							OCA.Eurooffice.OpenTemplatePicker(name, '.pptx', 'presentation')
-						} else {
-							OCA.Eurooffice.CreateFile(name + '.pptx', fileList)
-						}
-					},
-				})
-
-				if (OCA.Eurooffice.GetTemplates) {
-					OCA.Eurooffice.GetTemplates()
-				}
-			}
-
-			menu.addMenuEntry({
-				id: 'euroofficePdf',
-				displayName: t(OCA.Eurooffice.AppName, 'New PDF form'),
-				templateName: t(OCA.Eurooffice.AppName, 'New PDF form'),
-				iconClass: 'icon-eurooffice-new-pdf',
-				fileType: 'pdf',
-				actionHandler(name) {
-					OCA.Eurooffice.OpenFormPicker(name + '.pdf', fileList)
-				},
-			})
-		},
-	}
-
 	OCA.Eurooffice.getFileExtension = function(fileName) {
 		const extension = fileName.substr(fileName.lastIndexOf('.') + 1).toLowerCase()
 		return extension
@@ -920,8 +848,6 @@ import { loadState } from '@nextcloud/initial-state'
 				document.body.classList.add('eurooffice-inline')
 			}
 		} else {
-			OC.Plugins.register('OCA.Files.NewFileMenu', OCA.Eurooffice.NewFileMenu)
-
 			OCA.Eurooffice.registerNewFileMenu()
 
 			OCA.Eurooffice.registerAction()
