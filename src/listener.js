@@ -84,6 +84,50 @@
 		}
 	}
 
+	// Open the NC Assistant text-processing form seeded with the editor
+	// selection. We deliberately do NOT add an "Insert into editor" action
+	// button: writing the AI result back into the document strips formatting
+	// and produces low-quality replacements (markup is lost on plain-text
+	// paste). Until that round-trip preserves at least basic styling, the
+	// feature is intentionally read-only — the user copies the result from
+	// the modal manually. The modal's built-in close button dismisses it.
+	OCA.Eurooffice.onSmartPickerRequest = async function(selectedText) {
+		if (this.showSmartPicker) {
+			return
+		}
+		this.showSmartPicker = true
+
+		const openAssistantForm = window.OCA && window.OCA.Assistant && window.OCA.Assistant.openAssistantForm
+		try {
+			if (typeof openAssistantForm !== 'function') {
+				console.debug('NC Assistant app is not loaded; smart picker is unavailable')
+				return
+			}
+			// openAssistantForm maps a single `input` string to
+			// initInputs:{prompt: input} which only fits picker-style task
+			// types. Seed `inputs` directly so core:text2text:* (translate,
+			// summarize, rewrite, …) — which expects an `input` key — gets
+			// the user's selection too. Populate prompt/input/text so any
+			// task type's input field finds the seed already there.
+			const seedInputs = selectedText
+				? { prompt: selectedText, input: selectedText, text: selectedText }
+				: {}
+			await openAssistantForm({
+				appId: OCA.Eurooffice.AppName,
+				taskType: 'core:text2text',
+				inputs: seedInputs,
+				// false so the result renders inside the modal and the user can
+				// read / copy it. With true the modal would unmount the moment
+				// the task finishes.
+				closeOnResult: false,
+			})
+		} catch (e) {
+			console.debug('Smart Picker cancelled or failed:', e)
+		} finally {
+			this.showSmartPicker = false
+		}
+	}
+
 	OCA.Eurooffice.onRequestMailMergeRecipients = function(recipientMimes) {
 		const frame = document.querySelector(OCA.Eurooffice.frameSelector)
 		if (frame && frame.contentWindow) {
@@ -183,6 +227,9 @@
 			break
 		case 'editorRequestInsertImage':
 			OCA.Eurooffice.onRequestInsertImage(event.data.param)
+			break
+		case 'editorRequestSmartPicker':
+			OCA.Eurooffice.onSmartPickerRequest(event.data.param && event.data.param.selectedText)
 			break
 		case 'editorRequestMailMergeRecipients':
 			OCA.Eurooffice.onRequestMailMergeRecipients(event.data.param)
