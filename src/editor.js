@@ -141,9 +141,18 @@ import axios from '@nextcloud/axios'
 							onMakeActionLink: OCA.Eurooffice.onMakeActionLink,
 						}
 
-						if (config.editorConfig.tenant) {
-							config.events.onAppReady = function() {
+						config.events.onAppReady = function() {
+							if (config.editorConfig.tenant) {
 								OCA.Eurooffice.docEditor.showMessage(t(OCA.Eurooffice.AppName, 'You are using public demo Nextcloud Office server. Please do not store private sensitive data.'))
+							}
+							// Tell the editor whether the NC Assistant app is enabled.
+							// The EditorController publishes this via initial state under
+							// the 'eurooffice' namespace so it works on every editor layout
+							// (including the inframe 'base' layout that doesn't run the
+							// Assistant app's own initial-state bootstrap).
+							const assistantAvailable = !!OCP?.InitialState?.loadState?.('eurooffice', 'assistant-enabled', false)
+							if (typeof OCA.Eurooffice.docEditor.setAssistantAvailable === 'function') {
+								OCA.Eurooffice.docEditor.setAssistantAvailable(assistantAvailable)
 							}
 						}
 
@@ -160,6 +169,7 @@ import axios from '@nextcloud/axios'
 							config.events.onRequestReferenceSource = OCA.Eurooffice.onRequestReferenceSource
 							config.events.onMetaChange = OCA.Eurooffice.onMetaChange
 							config.events.onRequestRefreshFile = OCA.Eurooffice.onRequestRefreshFile
+							config.events.onRequestSmartPicker = OCA.Eurooffice.onRequestSmartPicker
 
 							if (OCA.Eurooffice.currentUser.uid) {
 								config.events.onRequestUsers = OCA.Eurooffice.onRequestUsers
@@ -382,6 +392,17 @@ import axios from '@nextcloud/axios'
 
 				OCA.Eurooffice.docEditor.insertImage(data)
 			})
+	}
+
+	OCA.Eurooffice.onRequestSmartPicker = function(event) {
+		// The web-apps Gateway delivers the user's current selection via
+		// event.data.selectedText so the NC Assistant can seed its input
+		// with the text the user wants to operate on.
+		const selectedText = event?.data?.selectedText ?? ''
+		window.parent.postMessage({
+			method: 'editorRequestSmartPicker',
+			param: { selectedText },
+		}, '*')
 	}
 
 	OCA.Eurooffice.onRequestMailMergeRecipients = function() {
