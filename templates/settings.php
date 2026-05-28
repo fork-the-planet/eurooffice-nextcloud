@@ -85,7 +85,7 @@ if ($_["tagsEnabled"]) {
     <div>
         <button id="euroofficeAddrSave" class="button primary"><?php p($l->t("Save")) ?></button>
 
-        <div class="eurooffice-demo">
+        <div class="eurooffice-demo eurooffice-hide">
             <input type="checkbox" class="checkbox" id="euroofficeDemo"
                 <?php if ($_["demo"]["enabled"]) { ?>checked="checked"<?php } ?>
                 <?php if (!$_["demo"]["available"]) { ?>disabled="disabled"<?php } ?> />
