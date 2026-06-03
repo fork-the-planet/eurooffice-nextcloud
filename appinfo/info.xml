@@ -35,7 +35,7 @@ Whether you’re working with internal teams or external collaborators, the Next
     <screenshot>https://raw.githubusercontent.com/Nextcloud Office/eurooffice-nextcloud/master/screenshots/spreadsheet.png</screenshot>
     <screenshot>https://raw.githubusercontent.com/Nextcloud Office/eurooffice-nextcloud/master/screenshots/presentation.png</screenshot>
     <dependencies>
-        <nextcloud min-version="33" max-version="34"/>
+        <nextcloud min-version="33" max-version="35"/>
     </dependencies>
     <settings>
         <admin>OCA\Eurooffice\AdminSettings</admin>
