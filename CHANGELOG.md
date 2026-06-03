@@ -1,15 +1,24 @@
 # Change Log
 
 ## 11.0.0
+## Added
+- NC Assistant Smart Picker integration
+- Nextcloud 33-35 support
+
 ## Changed
-- updated PHP codebase to Nextcloud 32 API
-- adopted PHP 8.1 syntax
-- improved PHP type coverage
-- removed unused PHP code
-- internal PHP refactoring
-- migrated from legacy hooks to event listeners
-- fixed opening editor for shared link
-- Nextcloud v31 is no longer supported
+- Rebranded from ONLYOFFICE to Nextcloud Office
+- Replaced jQuery with native DOM and @nextcloud/axios
+- Replaced jQuery template picker and download-as dialog with Vue NcDialog
+- Renamed OCA.Onlyoffice JS namespace to OCA.Eurooffice
+- Migrated to @nextcloud/files v4 API
+- Register TemplateFileCreator via RegisterTemplateCreatorEvent listener
+
+## Fixed
+- Preserve percent-encoded URLs for createUrl and templates
+- Allow public-share visitors to load the template list
+- Bump firebase/php-jwt to 7 and handle 32-char key requirement
+- Accept null $version in CallbackController download flow
+- Publish Assistant availability via initial state
 
 ## 9.13.0
 ## Changed
