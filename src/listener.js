@@ -94,18 +94,14 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 	// feature is intentionally read-only — the user copies the result from
 	// the modal manually. The modal's built-in close button dismisses it.
 	OCA.Eurooffice.onSmartPickerRequest = async function(selectedText, source) {
-		console.log('onSmartPickerRequest called:', { selectedText, source });
 		if (this.showSmartPicker) {
-			console.log('showSmartPicker is true, returning');
 			return;
 		}
 		this.showSmartPicker = true;
 
 		try {
 			if (source === 'contextmenu') {
-				console.log('contextmenu branch - opening Assistant directly');
 				const openAssistantForm = window.OCA?.Assistant?.openAssistantForm;
-				console.log('openAssistantForm:', openAssistantForm);
 				if (typeof openAssistantForm !== 'function') {
 					console.debug('NC Assistant app is not loaded; smart picker is unavailable');
 					return;
@@ -114,30 +110,21 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 					const seedInputs = selectedText
 						? { prompt: selectedText, input: selectedText, text: selectedText }
 						: {};
-					console.log('Calling openAssistantForm with:', {
-						appId: OCA.Eurooffice.AppName,
-						taskType: 'core:text2text',
-						inputs: seedInputs,
-					});
 					await openAssistantForm({
 						appId: OCA.Eurooffice.AppName,
 						taskType: 'core:text2text',
 						inputs: seedInputs,
 						closeOnResult: false,
 					});
-					console.log('openAssistantForm completed successfully');
 				} catch (e) {
-					console.log('openAssistantForm caught error:', e);
+					// Smart Picker cancelled or failed
 				}
 			} else {
-				console.log('smartpicker branch - opening provider selector');
 				await getLinkWithPicker('eurooffice', false);
-				console.log('getLinkWithPicker completed successfully');
 			}
 		} catch (e) {
-			console.log('User cancelled or error:', e);
+			// Smart Picker cancelled or failed
 		} finally {
-			console.log('finally - resetting showSmartPicker to false');
 			this.showSmartPicker = false;
 		}
 	}
