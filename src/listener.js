@@ -119,9 +119,16 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 				} catch (e) {
 					// Smart Picker cancelled or failed
 				}
-			} else {
-				await getLinkWithPicker('eurooffice', false);
-			}
+		} else {
+			// Toolbar button: open the Smart Picker provider selection modal
+			getLinkWithPicker('eurooffice', false)
+				.then((link) => {
+					if (link) {
+						OCA.Eurooffice.onInsertLink(link)
+					}
+				})
+				.catch(() => {})
+		}
 		} catch (e) {
 			// Smart Picker cancelled or failed
 		} finally {
@@ -178,6 +185,16 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 
 	OCA.Eurooffice.onDocumentReady = function() {
 		OCA.Eurooffice.setViewport()
+	}
+
+	OCA.Eurooffice.onInsertLink = function(link) {
+		const frame = document.querySelector(OCA.Eurooffice.frameSelector)
+		if (frame && frame.contentWindow && link) {
+			frame.contentWindow.postMessage({
+				command: 'insertLink',
+				data: link,
+			}, '*')
+		}
 	}
 
 	OCA.Eurooffice.changeFavicon = function(favicon) {
