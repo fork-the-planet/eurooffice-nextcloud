@@ -21,7 +21,9 @@
  *
  */
 
-/* global _ */
+/* global _, OC, OCP, t */
+
+import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 
 /**
  * @param {object} OCA Nextcloud OCA object
@@ -91,40 +93,52 @@
 	// paste). Until that round-trip preserves at least basic styling, the
 	// feature is intentionally read-only — the user copies the result from
 	// the modal manually. The modal's built-in close button dismisses it.
-	OCA.Eurooffice.onSmartPickerRequest = async function(selectedText) {
+	OCA.Eurooffice.onSmartPickerRequest = async function(selectedText, source) {
+		console.log('onSmartPickerRequest called:', { selectedText, source });
 		if (this.showSmartPicker) {
-			return
+			console.log('showSmartPicker is true, returning');
+			return;
 		}
-		this.showSmartPicker = true
+		this.showSmartPicker = true;
 
-		const openAssistantForm = window.OCA?.Assistant?.openAssistantForm
 		try {
-			if (typeof openAssistantForm !== 'function') {
-				console.debug('NC Assistant app is not loaded; smart picker is unavailable')
-				return
+			if (source === 'contextmenu') {
+				console.log('contextmenu branch - opening Assistant directly');
+				const openAssistantForm = window.OCA?.Assistant?.openAssistantForm;
+				console.log('openAssistantForm:', openAssistantForm);
+				if (typeof openAssistantForm !== 'function') {
+					console.debug('NC Assistant app is not loaded; smart picker is unavailable');
+					return;
+				}
+				try {
+					const seedInputs = selectedText
+						? { prompt: selectedText, input: selectedText, text: selectedText }
+						: {};
+					console.log('Calling openAssistantForm with:', {
+						appId: OCA.Eurooffice.AppName,
+						taskType: 'core:text2text',
+						inputs: seedInputs,
+					});
+					await openAssistantForm({
+						appId: OCA.Eurooffice.AppName,
+						taskType: 'core:text2text',
+						inputs: seedInputs,
+						closeOnResult: false,
+					});
+					console.log('openAssistantForm completed successfully');
+				} catch (e) {
+					console.log('openAssistantForm caught error:', e);
+				}
+			} else {
+				console.log('smartpicker branch - opening provider selector');
+				await getLinkWithPicker('eurooffice', false);
+				console.log('getLinkWithPicker completed successfully');
 			}
-			// openAssistantForm maps a single `input` string to
-			// initInputs:{prompt: input} which only fits picker-style task
-			// types. Seed `inputs` directly so core:text2text:* (translate,
-			// summarize, rewrite, …) — which expects an `input` key — gets
-			// the user's selection too. Populate prompt/input/text so any
-			// task type's input field finds the seed already there.
-			const seedInputs = selectedText
-				? { prompt: selectedText, input: selectedText, text: selectedText }
-				: {}
-			await openAssistantForm({
-				appId: OCA.Eurooffice.AppName,
-				taskType: 'core:text2text',
-				inputs: seedInputs,
-				// false so the result renders inside the modal and the user can
-				// read / copy it. With true the modal would unmount the moment
-				// the task finishes.
-				closeOnResult: false,
-			})
 		} catch (e) {
-			console.debug('Smart Picker cancelled or failed:', e)
+			console.log('User cancelled or error:', e);
 		} finally {
-			this.showSmartPicker = false
+			console.log('finally - resetting showSmartPicker to false');
+			this.showSmartPicker = false;
 		}
 	}
 
@@ -229,7 +243,7 @@
 			OCA.Eurooffice.onRequestInsertImage(event.data.param)
 			break
 		case 'editorRequestSmartPicker':
-			OCA.Eurooffice.onSmartPickerRequest(event.data.param?.selectedText)
+			OCA.Eurooffice.onSmartPickerRequest(event.data.param?.selectedText, event.data.param?.source)
 			break
 		case 'editorRequestMailMergeRecipients':
 			OCA.Eurooffice.onRequestMailMergeRecipients(event.data.param)

@@ -398,10 +398,11 @@ import axios from '@nextcloud/axios'
 		// The web-apps Gateway delivers the user's current selection via
 		// event.data.selectedText so the NC Assistant can seed its input
 		// with the text the user wants to operate on.
-		const selectedText = event?.data?.selectedText ?? ''
+		const selectedText = event?.data?.selectedText ?? event?.selectedText ?? ''
+		const source = event?.data?.source ?? event?.source ?? 'smartpicker'
 		window.parent.postMessage({
 			method: 'editorRequestSmartPicker',
-			param: { selectedText },
+			param: { selectedText, source },
 		}, '*')
 	}
 
