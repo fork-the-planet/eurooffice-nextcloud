@@ -214,7 +214,7 @@ import { loadState } from '@nextcloud/initial-state'
 			iframe.setAttribute('nonce', btoa(OC.requestToken))
 			iframe.setAttribute('scrolling', 'no')
 			iframe.setAttribute('allowfullscreen', '')
-			iframe.src = url + '&inframe=true'
+			iframe.src = url + '&inframe=true&parentOrigin=' + encodeURIComponent(window.location.origin)
 			iframeContainer.appendChild(iframe)
 
 			const frameContainer = document.getElementById('app-content') || document.getElementById('app-content-vue')
@@ -841,7 +841,7 @@ import { loadState } from '@nextcloud/initial-state'
 				iframe.nonce = btoa(OC.requestToken)
 				iframe.scrolling = 'no'
 				iframe.allowFullscreen = true
-				iframe.src = `${editorUrl}?inframe=true`
+				iframe.src = `${editorUrl}?inframe=true&parentOrigin=${encodeURIComponent(window.location.origin)}`
 				container.appendChild(iframe)
 				const appContent = document.querySelector('#app-content') || document.querySelector('#app-content-vue')
 				appContent.appendChild(container)

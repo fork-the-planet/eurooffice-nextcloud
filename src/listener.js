@@ -120,14 +120,19 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 					// Smart Picker cancelled or failed
 				}
 		} else {
+			console.log('smartpicker branch - opening provider selector');
 			// Toolbar button: open the Smart Picker provider selection modal
 			getLinkWithPicker('eurooffice', false)
 				.then((link) => {
+					console.log('getLinkWithPicker resolved:', link);
 					if (link) {
-						OCA.Eurooffice.onInsertLink(link)
+						console.log('Calling onInsertLink with:', link);
+						OCA.Eurooffice.onInsertLink(link);
+					} else {
+						console.log('getLinkWithPicker returned null, nothing to insert');
 					}
 				})
-				.catch(() => {})
+				.catch((err) => console.log('getLinkWithPicker error:', err))
 		}
 		} catch (e) {
 			// Smart Picker cancelled or failed
@@ -184,16 +189,44 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 	}
 
 	OCA.Eurooffice.onDocumentReady = function() {
+		console.log('onDocumentReady called');
 		OCA.Eurooffice.setViewport()
+		OCA.Eurooffice._isDocumentReady = true
+		console.log('_isDocumentReady set to true');
+		if (OCA.Eurooffice._pendingInsertLinks && OCA.Eurooffice._pendingInsertLinks.length > 0) {
+			console.log('Flushing', OCA.Eurooffice._pendingInsertLinks.length, 'pending insertLink commands');
+			const links = OCA.Eurooffice._pendingInsertLinks
+			OCA.Eurooffice._pendingInsertLinks = []
+			links.forEach((link) => {
+				console.log('Flushing link:', link);
+				OCA.Eurooffice._doInsertLink(link)
+			})
+		}
+	}
+
+	OCA.Eurooffice._pendingInsertLinks = []
+	OCA.Eurooffice._isDocumentReady = false
+
+	OCA.Eurooffice._doInsertLink = function(link) {
+		const frame = document.querySelector(OCA.Eurooffice.frameSelector)
+		if (frame && frame.contentWindow && link) {
+			frame.contentWindow.postMessage(JSON.stringify({
+				command: 'insertLink',
+				data: link,
+			}), window.location.origin)
+		}
 	}
 
 	OCA.Eurooffice.onInsertLink = function(link) {
-		const frame = document.querySelector(OCA.Eurooffice.frameSelector)
-		if (frame && frame.contentWindow && link) {
-			frame.contentWindow.postMessage({
-				command: 'insertLink',
-				data: link,
-			}, '*')
+		console.log('onInsertLink called with:', link);
+		console.log('_isDocumentReady:', OCA.Eurooffice._isDocumentReady);
+		console.log('_pendingInsertLinks length:', OCA.Eurooffice._pendingInsertLinks.length);
+		if (OCA.Eurooffice._isDocumentReady) {
+			console.log('Inserting link immediately');
+			OCA.Eurooffice._doInsertLink(link)
+		} else {
+			console.log('Queuing link for insertion');
+			OCA.Eurooffice._pendingInsertLinks.push(link)
 		}
 	}
 
