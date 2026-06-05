@@ -122,12 +122,20 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 		} else {
 			console.log('smartpicker branch - opening provider selector');
 			// Toolbar button: open the Smart Picker provider selection modal
+			if (typeof getLinkWithPicker !== 'function') {
+				console.error('getLinkWithPicker is not available. Make sure @nextcloud/vue supports the Smart Picker.');
+				return;
+			}
 			getLinkWithPicker('eurooffice', false)
-				.then((link) => {
-					console.log('getLinkWithPicker resolved:', link);
-					if (link) {
-						console.log('Calling onInsertLink with:', link);
-						OCA.Eurooffice.onInsertLink(link);
+				.then((result) => {
+					console.log('getLinkWithPicker resolved:', result);
+					if (result) {
+						// getLinkWithPicker returns { link: { url, text, source }, ... } or just { url, text }
+						const linkUrl = (result.link && result.link.url) || result.url || result;
+						const linkText = (result.link && result.link.text) || result.text || linkUrl;
+						console.log('Extracted link URL:', linkUrl, 'text:', linkText);
+						console.log('Calling onInsertLink with:', linkUrl);
+						OCA.Eurooffice.onInsertLink(linkUrl, linkText);
 					} else {
 						console.log('getLinkWithPicker returned null, nothing to insert');
 					}
@@ -208,17 +216,28 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 	OCA.Eurooffice._isDocumentReady = false
 
 	OCA.Eurooffice._doInsertLink = function(link) {
-		const frame = document.querySelector(OCA.Eurooffice.frameSelector)
-		if (frame && frame.contentWindow && link) {
-			frame.contentWindow.postMessage(JSON.stringify({
-				command: 'insertLink',
-				data: link,
-			}), window.location.origin)
+		if (!link) return;
+		const euroofficeFrame = document.getElementById('euroofficeFrame')
+		if (euroofficeFrame && euroofficeFrame.contentWindow) {
+			// The Document Server creates an iframe with name="frameEditor" inside euroofficeFrame
+			// The Gateway.js that handles commands lives inside frameEditor
+			const frameEditor = euroofficeFrame.contentWindow.document.querySelector('iframe[name="frameEditor"]')
+			if (frameEditor && frameEditor.contentWindow) {
+				console.log('_doInsertLink posting to frameEditor via euroofficeFrame');
+				frameEditor.contentWindow.postMessage(JSON.stringify({
+					command: 'insertLink',
+					data: link,
+				}), '*')
+			} else {
+				console.warn('_doInsertLink: frameEditor not found inside euroofficeFrame', frameEditor, link);
+			}
+		} else {
+			console.warn('_doInsertLink: euroofficeFrame not found or link is empty', euroofficeFrame, link);
 		}
 	}
 
-	OCA.Eurooffice.onInsertLink = function(link) {
-		console.log('onInsertLink called with:', link);
+	OCA.Eurooffice.onInsertLink = function(link, linkText) {
+		console.log('onInsertLink called with:', link, linkText);
 		console.log('_isDocumentReady:', OCA.Eurooffice._isDocumentReady);
 		console.log('_pendingInsertLinks length:', OCA.Eurooffice._pendingInsertLinks.length);
 		if (OCA.Eurooffice._isDocumentReady) {
