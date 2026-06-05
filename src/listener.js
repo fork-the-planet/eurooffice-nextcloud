@@ -120,7 +120,6 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 					// Smart Picker cancelled or failed
 				}
 		} else {
-			console.log('smartpicker branch - opening provider selector');
 			// Toolbar button: open the Smart Picker provider selection modal
 			if (typeof getLinkWithPicker !== 'function') {
 				console.error('getLinkWithPicker is not available. Make sure @nextcloud/vue supports the Smart Picker.');
@@ -128,19 +127,14 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 			}
 			getLinkWithPicker('eurooffice', false)
 				.then((result) => {
-					console.log('getLinkWithPicker resolved:', result);
 					if (result) {
 						// getLinkWithPicker returns { link: { url, text, source }, ... } or just { url, text }
 						const linkUrl = (result.link && result.link.url) || result.url || result;
 						const linkText = (result.link && result.link.text) || result.text || linkUrl;
-						console.log('Extracted link URL:', linkUrl, 'text:', linkText);
-						console.log('Calling onInsertLink with:', linkUrl);
 						OCA.Eurooffice.onInsertLink(linkUrl, linkText);
-					} else {
-						console.log('getLinkWithPicker returned null, nothing to insert');
 					}
 				})
-				.catch((err) => console.log('getLinkWithPicker error:', err))
+				.catch((err) => console.error('getLinkWithPicker error:', err))
 		}
 		} catch (e) {
 			// Smart Picker cancelled or failed
@@ -197,16 +191,12 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 	}
 
 	OCA.Eurooffice.onDocumentReady = function() {
-		console.log('onDocumentReady called');
 		OCA.Eurooffice.setViewport()
 		OCA.Eurooffice._isDocumentReady = true
-		console.log('_isDocumentReady set to true');
 		if (OCA.Eurooffice._pendingInsertLinks && OCA.Eurooffice._pendingInsertLinks.length > 0) {
-			console.log('Flushing', OCA.Eurooffice._pendingInsertLinks.length, 'pending insertLink commands');
 			const links = OCA.Eurooffice._pendingInsertLinks
 			OCA.Eurooffice._pendingInsertLinks = []
 			links.forEach((link) => {
-				console.log('Flushing link:', link);
 				OCA.Eurooffice._doInsertLink(link)
 			})
 		}
@@ -223,28 +213,18 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 			// The Gateway.js that handles commands lives inside frameEditor
 			const frameEditor = euroofficeFrame.contentWindow.document.querySelector('iframe[name="frameEditor"]')
 			if (frameEditor && frameEditor.contentWindow) {
-				console.log('_doInsertLink posting to frameEditor via euroofficeFrame');
 				frameEditor.contentWindow.postMessage(JSON.stringify({
 					command: 'insertLink',
 					data: link,
 				}), '*')
-			} else {
-				console.warn('_doInsertLink: frameEditor not found inside euroofficeFrame', frameEditor, link);
 			}
-		} else {
-			console.warn('_doInsertLink: euroofficeFrame not found or link is empty', euroofficeFrame, link);
 		}
 	}
 
 	OCA.Eurooffice.onInsertLink = function(link, linkText) {
-		console.log('onInsertLink called with:', link, linkText);
-		console.log('_isDocumentReady:', OCA.Eurooffice._isDocumentReady);
-		console.log('_pendingInsertLinks length:', OCA.Eurooffice._pendingInsertLinks.length);
 		if (OCA.Eurooffice._isDocumentReady) {
-			console.log('Inserting link immediately');
 			OCA.Eurooffice._doInsertLink(link)
 		} else {
-			console.log('Queuing link for insertion');
 			OCA.Eurooffice._pendingInsertLinks.push(link)
 		}
 	}
