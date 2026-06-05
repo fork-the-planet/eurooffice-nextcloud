@@ -125,16 +125,17 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 				console.error('getLinkWithPicker is not available. Make sure @nextcloud/vue supports the Smart Picker.');
 				return;
 			}
-			getLinkWithPicker('eurooffice', false)
-				.then((result) => {
-					if (result) {
-						// getLinkWithPicker returns { link: { url, text, source }, ... } or just { url, text }
-						const linkUrl = (result.link && result.link.url) || result.url || result;
-						const linkText = (result.link && result.link.text) || result.text || linkUrl;
-						OCA.Eurooffice.onInsertLink(linkUrl, linkText);
-					}
-				})
-				.catch((err) => console.error('getLinkWithPicker error:', err))
+			try {
+				const pickerResult = await getLinkWithPicker('eurooffice', false);
+				if (pickerResult) {
+					// getLinkWithPicker returns { link: { url, text, source }, ... } or just { url, text }
+					const linkUrl = (pickerResult.link && pickerResult.link.url) || pickerResult.url || pickerResult;
+					const linkText = (pickerResult.link && pickerResult.link.text) || pickerResult.text || linkUrl;
+					OCA.Eurooffice.onInsertLink(linkUrl, linkText);
+				}
+			} catch (err) {
+				console.error('getLinkWithPicker error:', err);
+			}
 		}
 		} catch (e) {
 			// Smart Picker cancelled or failed
