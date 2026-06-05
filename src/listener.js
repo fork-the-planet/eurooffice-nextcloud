@@ -130,15 +130,9 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 				return;
 			}
 			try {
-				const pickerResult = await getLinkWithPicker('eurooffice', false);
-				if (pickerResult) {
-					const linkUrl = typeof pickerResult === 'string'
-						? pickerResult
-						: (pickerResult.link?.url || pickerResult.url || '');
-					const linkText = typeof pickerResult === 'string'
-						? pickerResult
-						: (pickerResult.link?.text || pickerResult.text || linkUrl);
-					OCA.Eurooffice.onInsertLink(linkUrl, linkText);
+				const linkUrl = await getLinkWithPicker('eurooffice', false);
+				if (linkUrl) {
+					OCA.Eurooffice.onInsertLink(linkUrl);
 				}
 			} catch (err) {
 				console.debug('Smart Picker cancelled or failed:', err);
@@ -200,8 +194,8 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 		if (OCA.Eurooffice._pendingInsertLinks && OCA.Eurooffice._pendingInsertLinks.length > 0) {
 			const links = OCA.Eurooffice._pendingInsertLinks
 			OCA.Eurooffice._pendingInsertLinks = []
-			links.forEach((item) => {
-				OCA.Eurooffice._doInsertLink(item.link, item.linkText)
+			links.forEach((link) => {
+				OCA.Eurooffice._doInsertLink(link)
 			})
 		}
 	}
@@ -209,19 +203,19 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 	OCA.Eurooffice._pendingInsertLinks = []
 	OCA.Eurooffice._isDocumentReady = false
 
-	OCA.Eurooffice._doInsertLink = function(link, linkText) {
+	OCA.Eurooffice._doInsertLink = function(link) {
 		if (!link) return;
 		const frame = document.querySelector(OCA.Eurooffice.frameSelector);
 		if (frame && frame.contentWindow && frame.contentWindow.OCA?.Eurooffice?.docEditor) {
-			frame.contentWindow.OCA.Eurooffice.docEditor.insertLink(link, linkText);
+			frame.contentWindow.OCA.Eurooffice.docEditor.insertLink(link);
 		}
 	}
 
-	OCA.Eurooffice.onInsertLink = function(link, linkText) {
+	OCA.Eurooffice.onInsertLink = function(link) {
 		if (OCA.Eurooffice._isDocumentReady) {
-			OCA.Eurooffice._doInsertLink(link, linkText)
+			OCA.Eurooffice._doInsertLink(link)
 		} else {
-			OCA.Eurooffice._pendingInsertLinks.push({ link, linkText })
+			OCA.Eurooffice._pendingInsertLinks.push(link)
 		}
 	}
 
