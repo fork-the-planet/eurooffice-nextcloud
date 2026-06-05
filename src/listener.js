@@ -21,7 +21,9 @@
  *
  */
 
-/* global _ */
+/* global _, OC, OCP, t */
+
+import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 
 /**
  * @param {object} OCA Nextcloud OCA object
@@ -46,6 +48,9 @@
 		if (frame) {
 			frame.remove()
 		}
+
+		OCA.Eurooffice._isDocumentReady = false
+		OCA.Eurooffice._pendingInsertLinks = []
 
 		if (OCA.Viewer && OCA.Viewer.close) {
 			OCA.Viewer.close()
@@ -91,41 +96,49 @@
 	// paste). Until that round-trip preserves at least basic styling, the
 	// feature is intentionally read-only — the user copies the result from
 	// the modal manually. The modal's built-in close button dismisses it.
-	OCA.Eurooffice.onSmartPickerRequest = async function(selectedText) {
+	OCA.Eurooffice.onSmartPickerRequest = async function(selectedText, source) {
 		if (this.showSmartPicker) {
-			return
+			return;
 		}
-		this.showSmartPicker = true
+		this.showSmartPicker = true;
 
-		const openAssistantForm = window.OCA?.Assistant?.openAssistantForm
-		try {
+		if (source === 'contextmenu') {
+			const openAssistantForm = window.OCA?.Assistant?.openAssistantForm;
 			if (typeof openAssistantForm !== 'function') {
-				console.debug('NC Assistant app is not loaded; smart picker is unavailable')
-				return
+				console.debug('NC Assistant app is not loaded; smart picker is unavailable');
+				this.showSmartPicker = false;
+				return;
 			}
-			// openAssistantForm maps a single `input` string to
-			// initInputs:{prompt: input} which only fits picker-style task
-			// types. Seed `inputs` directly so core:text2text:* (translate,
-			// summarize, rewrite, …) — which expects an `input` key — gets
-			// the user's selection too. Populate prompt/input/text so any
-			// task type's input field finds the seed already there.
-			const seedInputs = selectedText
-				? { prompt: selectedText, input: selectedText, text: selectedText }
-				: {}
-			await openAssistantForm({
-				appId: OCA.Eurooffice.AppName,
-				taskType: 'core:text2text',
-				inputs: seedInputs,
-				// false so the result renders inside the modal and the user can
-				// read / copy it. With true the modal would unmount the moment
-				// the task finishes.
-				closeOnResult: false,
-			})
-		} catch (e) {
-			console.debug('Smart Picker cancelled or failed:', e)
-		} finally {
-			this.showSmartPicker = false
+			try {
+				const seedInputs = selectedText
+					? { prompt: selectedText, input: selectedText, text: selectedText }
+					: {};
+				await openAssistantForm({
+					appId: OCA.Eurooffice.AppName,
+					taskType: 'core:text2text',
+					inputs: seedInputs,
+					closeOnResult: false,
+				});
+			} catch (e) {
+				// Smart Picker cancelled or failed
+			}
+		} else {
+			// Toolbar button: open the Smart Picker provider selection modal
+			if (typeof getLinkWithPicker !== 'function') {
+				console.error('getLinkWithPicker is not available. Make sure @nextcloud/vue supports the Smart Picker.');
+				this.showSmartPicker = false;
+				return;
+			}
+			try {
+				const linkUrl = await getLinkWithPicker('eurooffice', false);
+				if (linkUrl) {
+					OCA.Eurooffice.onInsertLink(linkUrl);
+				}
+			} catch (err) {
+				console.debug('Smart Picker cancelled or failed:', err);
+			}
 		}
+		this.showSmartPicker = false;
 	}
 
 	OCA.Eurooffice.onRequestMailMergeRecipients = function(recipientMimes) {
@@ -177,6 +190,33 @@
 
 	OCA.Eurooffice.onDocumentReady = function() {
 		OCA.Eurooffice.setViewport()
+		OCA.Eurooffice._isDocumentReady = true
+		if (OCA.Eurooffice._pendingInsertLinks && OCA.Eurooffice._pendingInsertLinks.length > 0) {
+			const links = OCA.Eurooffice._pendingInsertLinks
+			OCA.Eurooffice._pendingInsertLinks = []
+			links.forEach((link) => {
+				OCA.Eurooffice._doInsertLink(link)
+			})
+		}
+	}
+
+	OCA.Eurooffice._pendingInsertLinks = []
+	OCA.Eurooffice._isDocumentReady = false
+
+	OCA.Eurooffice._doInsertLink = function(link) {
+		if (!link) return;
+		const frame = document.querySelector(OCA.Eurooffice.frameSelector);
+		if (frame && frame.contentWindow && frame.contentWindow.OCA?.Eurooffice?.docEditor) {
+			frame.contentWindow.OCA.Eurooffice.docEditor.insertLink(link);
+		}
+	}
+
+	OCA.Eurooffice.onInsertLink = function(link) {
+		if (OCA.Eurooffice._isDocumentReady) {
+			OCA.Eurooffice._doInsertLink(link)
+		} else {
+			OCA.Eurooffice._pendingInsertLinks.push(link)
+		}
 	}
 
 	OCA.Eurooffice.changeFavicon = function(favicon) {
@@ -229,7 +269,7 @@
 			OCA.Eurooffice.onRequestInsertImage(event.data.param)
 			break
 		case 'editorRequestSmartPicker':
-			OCA.Eurooffice.onSmartPickerRequest(event.data.param?.selectedText)
+			OCA.Eurooffice.onSmartPickerRequest(event.data.param?.selectedText, event.data.param?.source)
 			break
 		case 'editorRequestMailMergeRecipients':
 			OCA.Eurooffice.onRequestMailMergeRecipients(event.data.param)
