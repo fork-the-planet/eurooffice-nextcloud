@@ -49,6 +49,9 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 			frame.remove()
 		}
 
+		OCA.Eurooffice._isDocumentReady = false
+		OCA.Eurooffice._pendingInsertLinks = []
+
 		if (OCA.Viewer && OCA.Viewer.close) {
 			OCA.Viewer.close()
 		}
@@ -99,49 +102,49 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 		}
 		this.showSmartPicker = true;
 
-		try {
-			if (source === 'contextmenu') {
-				const openAssistantForm = window.OCA?.Assistant?.openAssistantForm;
-				if (typeof openAssistantForm !== 'function') {
-					console.debug('NC Assistant app is not loaded; smart picker is unavailable');
-					return;
-				}
-				try {
-					const seedInputs = selectedText
-						? { prompt: selectedText, input: selectedText, text: selectedText }
-						: {};
-					await openAssistantForm({
-						appId: OCA.Eurooffice.AppName,
-						taskType: 'core:text2text',
-						inputs: seedInputs,
-						closeOnResult: false,
-					});
-				} catch (e) {
-					// Smart Picker cancelled or failed
-				}
+		if (source === 'contextmenu') {
+			const openAssistantForm = window.OCA?.Assistant?.openAssistantForm;
+			if (typeof openAssistantForm !== 'function') {
+				console.debug('NC Assistant app is not loaded; smart picker is unavailable');
+				this.showSmartPicker = false;
+				return;
+			}
+			try {
+				const seedInputs = selectedText
+					? { prompt: selectedText, input: selectedText, text: selectedText }
+					: {};
+				await openAssistantForm({
+					appId: OCA.Eurooffice.AppName,
+					taskType: 'core:text2text',
+					inputs: seedInputs,
+					closeOnResult: false,
+				});
+			} catch (e) {
+				// Smart Picker cancelled or failed
+			}
 		} else {
 			// Toolbar button: open the Smart Picker provider selection modal
 			if (typeof getLinkWithPicker !== 'function') {
 				console.error('getLinkWithPicker is not available. Make sure @nextcloud/vue supports the Smart Picker.');
+				this.showSmartPicker = false;
 				return;
 			}
 			try {
 				const pickerResult = await getLinkWithPicker('eurooffice', false);
 				if (pickerResult) {
-					// getLinkWithPicker returns { link: { url, text, source }, ... } or just { url, text }
-					const linkUrl = (pickerResult.link && pickerResult.link.url) || pickerResult.url || pickerResult;
-					const linkText = (pickerResult.link && pickerResult.link.text) || pickerResult.text || linkUrl;
+					const linkUrl = typeof pickerResult === 'string'
+						? pickerResult
+						: (pickerResult.link?.url || pickerResult.url || '');
+					const linkText = typeof pickerResult === 'string'
+						? pickerResult
+						: (pickerResult.link?.text || pickerResult.text || linkUrl);
 					OCA.Eurooffice.onInsertLink(linkUrl, linkText);
 				}
 			} catch (err) {
-				console.error('getLinkWithPicker error:', err);
+				console.debug('Smart Picker cancelled or failed:', err);
 			}
 		}
-		} catch (e) {
-			// Smart Picker cancelled or failed
-		} finally {
-			this.showSmartPicker = false;
-		}
+		this.showSmartPicker = false;
 	}
 
 	OCA.Eurooffice.onRequestMailMergeRecipients = function(recipientMimes) {
@@ -197,8 +200,8 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 		if (OCA.Eurooffice._pendingInsertLinks && OCA.Eurooffice._pendingInsertLinks.length > 0) {
 			const links = OCA.Eurooffice._pendingInsertLinks
 			OCA.Eurooffice._pendingInsertLinks = []
-			links.forEach((link) => {
-				OCA.Eurooffice._doInsertLink(link)
+			links.forEach((item) => {
+				OCA.Eurooffice._doInsertLink(item.link, item.linkText)
 			})
 		}
 	}
@@ -206,27 +209,19 @@ import { getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 	OCA.Eurooffice._pendingInsertLinks = []
 	OCA.Eurooffice._isDocumentReady = false
 
-	OCA.Eurooffice._doInsertLink = function(link) {
+	OCA.Eurooffice._doInsertLink = function(link, linkText) {
 		if (!link) return;
-		const euroofficeFrame = document.getElementById('euroofficeFrame')
-		if (euroofficeFrame && euroofficeFrame.contentWindow) {
-			// The Document Server creates an iframe with name="frameEditor" inside euroofficeFrame
-			// The Gateway.js that handles commands lives inside frameEditor
-			const frameEditor = euroofficeFrame.contentWindow.document.querySelector('iframe[name="frameEditor"]')
-			if (frameEditor && frameEditor.contentWindow) {
-				frameEditor.contentWindow.postMessage(JSON.stringify({
-					command: 'insertLink',
-					data: link,
-				}), '*')
-			}
+		const frame = document.querySelector(OCA.Eurooffice.frameSelector);
+		if (frame && frame.contentWindow && frame.contentWindow.OCA?.Eurooffice?.docEditor) {
+			frame.contentWindow.OCA.Eurooffice.docEditor.insertLink(link, linkText);
 		}
 	}
 
 	OCA.Eurooffice.onInsertLink = function(link, linkText) {
 		if (OCA.Eurooffice._isDocumentReady) {
-			OCA.Eurooffice._doInsertLink(link)
+			OCA.Eurooffice._doInsertLink(link, linkText)
 		} else {
-			OCA.Eurooffice._pendingInsertLinks.push(link)
+			OCA.Eurooffice._pendingInsertLinks.push({ link, linkText })
 		}
 	}
 
