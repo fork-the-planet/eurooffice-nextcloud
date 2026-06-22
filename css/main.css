@@ -32,6 +32,11 @@
     -webkit-mask-size: 16px 16px;
 }
 
+/* Fix: file action SVG icons have hardcoded fill="#000" — use Nextcloud's adaptive text token */
+.files-list__row-action-icon path {
+    fill: var(--color-main-text);
+}
+
 /* eurooffice-inline */
 #body-user.eurooffice-inline #app-navigation,
 #body-user.eurooffice-inline .app-navigation,
