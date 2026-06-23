@@ -28,8 +28,9 @@ Whether you’re working with internal teams or external collaborators, the Next
     <category>integration</category>
     <category>office</category>
     <category>tools</category>
-	<website>https://github.com/Euro-Office/eurooffice-nextcloud</website>
+	<website>https://nextcloud.com/office/</website>
     <bugs>https://github.com/Euro-Office/eurooffice-nextcloud/issues</bugs>
+    <discussion>https://help.nextcloud.com/c/support/office/195</discussion>
     <repository type="git">https://github.com/Euro-Office/eurooffice-nextcloud.git</repository>
     <screenshot>https://raw.githubusercontent.com/Euro-Office/eurooffice-nextcloud/main/screenshots/document.webp</screenshot>
     <screenshot>https://raw.githubusercontent.com/Euro-Office/eurooffice-nextcloud/main/screenshots/spreadsheet.webp</screenshot>
