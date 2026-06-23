@@ -22,18 +22,18 @@ Whether you’re working with internal teams or external collaborators, the Next
         <prevent_group_restriction/>
     </types>
     <documentation>
-        <developer>https://github.com/Nextcloud Office/eurooffice-nextcloud</developer>
+        <developer>https://github.com/Euro-Office/eurooffice-nextcloud</developer>
     </documentation>
     <category>files</category>
     <category>integration</category>
     <category>office</category>
     <category>tools</category>
-	<website>https://github.com/euro-office</website>
-    <bugs>https://github.com/Nextcloud Office/eurooffice-nextcloud/issues</bugs>
-    <repository type="git">https://github.com/Nextcloud Office/eurooffice-nextcloud.git</repository>
-    <screenshot>https://raw.githubusercontent.com/Nextcloud Office/eurooffice-nextcloud/master/screenshots/document.png</screenshot>
-    <screenshot>https://raw.githubusercontent.com/Nextcloud Office/eurooffice-nextcloud/master/screenshots/spreadsheet.png</screenshot>
-    <screenshot>https://raw.githubusercontent.com/Nextcloud Office/eurooffice-nextcloud/master/screenshots/presentation.png</screenshot>
+	<website>https://github.com/Euro-Office/eurooffice-nextcloud</website>
+    <bugs>https://github.com/Euro-Office/eurooffice-nextcloud/issues</bugs>
+    <repository type="git">https://github.com/Euro-Office/eurooffice-nextcloud.git</repository>
+    <screenshot>https://raw.githubusercontent.com/Euro-Office/eurooffice-nextcloud/main/screenshots/document.png</screenshot>
+    <screenshot>https://raw.githubusercontent.com/Euro-Office/eurooffice-nextcloud/main/screenshots/spreadsheet.png</screenshot>
+    <screenshot>https://raw.githubusercontent.com/Euro-Office/eurooffice-nextcloud/main/screenshots/presentation.png</screenshot>
     <dependencies>
         <nextcloud min-version="33" max-version="35"/>
     </dependencies>
