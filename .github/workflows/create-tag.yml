@@ -12,6 +12,8 @@ on:
 jobs:
   create-tag:
     runs-on: ubuntu-latest
+    # Only run in the source org — never inside nextcloud-releases.
+    if: ${{ github.repository_owner == 'Euro-Office' }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
