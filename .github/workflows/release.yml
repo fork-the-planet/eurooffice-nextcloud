@@ -11,6 +11,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Only run in the source org — never inside nextcloud-releases, where a
+    # token-created release would not trigger appstore-build-publish.yml.
+    if: ${{ github.repository_owner == 'Euro-Office' }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
